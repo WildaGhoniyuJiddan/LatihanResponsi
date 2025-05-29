@@ -1,6 +1,8 @@
 #include <iostream>
 using namespace std;
 
+const int maxSize = 999;
+
 struct Buku {
     string judul, pengarang;
     int tahun;
@@ -8,9 +10,25 @@ struct Buku {
     Buku* kanan;
 };
 
+struct Stack {
+    Buku data[maxSize];
+    int top = -1;
+
+    bool kosong() { return top == -1; }
+    bool penuh() { return top == maxSize - 1; }
+
+    void push(Buku b) {
+        if (!penuh()) data[++top] = b;
+    }
+
+    Buku pop() {
+        if (!kosong()) return data[top--];
+        return {};
+    }
+};
+
 Buku* akar = nullptr;
-Buku undoBuku[10];
-int jumlahUndo = 0;
+Stack undoStack;
 string aksiTerakhir = "";
 
 string tempJudul, tempPengarang, tempHapusJudul;
@@ -52,13 +70,12 @@ void sisipkanBuku() {
             }
         }
     }
-    if (jumlahUndo < 10) {
-    undoBuku[jumlahUndo].judul = bukuBaru->judul;
-    undoBuku[jumlahUndo].pengarang = bukuBaru->pengarang;
-    undoBuku[jumlahUndo].tahun = bukuBaru->tahun;
-    jumlahUndo++;
-    aksiTerakhir = "tambah";
+
+    if (!undoStack.penuh()) {
+        undoStack.push(*bukuBaru); //salin datanya saja, bukan pointer
+        aksiTerakhir = "tambah";
     }
+
     cout << "Buku berhasil ditambahkan.\n";
 }
 
@@ -99,13 +116,11 @@ Buku* hapusBuku(Buku* node) {
     else if (tempHapusJudul > node->judul)
         node->kanan = hapusBuku(node->kanan);
     else {
-        if (tempSimpanUndo && jumlahUndo < 10) {
-            undoBuku[jumlahUndo].judul = node->judul;
-            undoBuku[jumlahUndo].pengarang = node->pengarang;
-            undoBuku[jumlahUndo].tahun = node->tahun;
-            jumlahUndo++;
+        if (tempSimpanUndo && !undoStack.penuh()) {
+            undoStack.push(*node); //simpan salinan
             aksiTerakhir = "hapus";
         }
+
         if (!node->kiri) {
             Buku* temp = node->kanan;
             delete node;
@@ -128,8 +143,9 @@ Buku* hapusBuku(Buku* node) {
 }
 
 void hapus() {
-    cout << "Judul yang dihapus: "; cin >> tempHapusJudul;
-    
+    cout << "Judul yang dihapus: ";
+    cin >> tempHapusJudul;
+
     //cek apakah buku ada
     Buku* cek = akar;
     bool ditemukan = false;
@@ -149,19 +165,18 @@ void hapus() {
         return;
     }
 
-    //kalau ditemukan, hapus
     tempSimpanUndo = true;
     akar = hapusBuku(akar);
     cout << "Buku berhasil dihapus.\n";
 }
 
 void undoAksi() {
-    if (jumlahUndo == 0) {
+    if (undoStack.kosong()) {
         cout << "Tidak ada aksi untuk di-undo.\n";
         return;
     }
 
-    Buku dataUndo = undoBuku[--jumlahUndo];
+    Buku dataUndo = undoStack.pop();
 
     if (aksiTerakhir == "tambah") {
         cout << "Undo tambah: menghapus buku \"" << dataUndo.judul << "\".\n";
@@ -189,7 +204,7 @@ int main() {
         cout << "5. Keluar\n";
         cout << "Pilih: ";
         cin >> pilihan;
-        system("cls"); 
+        system("cls");
         switch (pilihan) {
             case 1:
                 cout << "Tambah Buku\n";
